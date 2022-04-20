@@ -260,7 +260,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	assert(SUCCEEDED(result));
 
 	//キーボードデバイスの生成
-	
+	IDirectInputDevice8* keyboard = nullptr;
+	result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+	assert(SUCCEEDED(result));
+
+	//入力データ形式のセット
+	result = keyboard->SetDataFormat(&c_dfDIKeyboard);
+	assert(SUCCEEDED(result));
+
+	//排他制御レベルのセット
+	result = keyboard->SetCooperativeLevel(
+		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	assert(SUCCEEDED(result));
+
 	//初期化ここまで
 
 	// 頂点データ
@@ -448,7 +460,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 				break;
 			}
 			//DirectX枚フレーム処理 ここから
-			// 
+			
+			//キーボード情報の取得開始
+			keyboard->Acquire();
+
+			//前期―の入力状態を取得する
+			BYTE key[256] = {};
+			keyboard->GetDeviceState(sizeof(key), key);
+
+			//キー入力プログラム
+			if (key[DIK_0]) {
+				OutputDebugStringA("Hit 0\n"); //出力ウィンドウに[Hit 0]と出力
+
+
+			}
+			
+
 			// バックバッファの番号を取得（2つなので0番か1番）
 			UINT bbIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -467,15 +494,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 			// ３．画面クリア           R     G     B    A
 			FLOAT clearColor[] = { 0.1f,0.25f, 0.5f,0.0f }; // 青っぽい色
+			if (key[DIK_SPACE]) {
+				clearColor[0] = 1.0f;
+				clearColor[1] = 1.0f;
+				clearColor[2] = 0.0f;
+			}
+
 			commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
+
 			// ４．描画コマンドここから
+			
 			// 
 			//ビューポートの設定コマンド
 			D3D12_VIEWPORT viewport{};
-			viewport.Width = WINDOW_WINDTH;
+			viewport.Width = WINDOW_WINDTH/2;
 			viewport.Height = WINDOW_HEIGHT;
-			viewport.TopLeftX = 0;
+			viewport.TopLeftX = WINDOW_WINDTH/2;	//画面の端
 			viewport.TopLeftY = 0;
 			viewport.MinDepth = 0.0f;
 			viewport.MaxDepth = 1.0f;
@@ -486,7 +521,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			D3D12_RECT scissorRect{};
 			scissorRect.left = 0;	//切り抜き座標左
 			scissorRect.right = scissorRect.left + WINDOW_WINDTH;	//切り抜き座標右
-			scissorRect.top = 0;	//切り抜き座標上
+			scissorRect.top = WINDOW_HEIGHT/2;	//切り抜き座標上
 			scissorRect.bottom = scissorRect.top + WINDOW_HEIGHT;	//切り抜き座標下
 			//シザー矩形設定コマンドをコマンドリストに積む
 			commandList->RSSetScissorRects(1, &scissorRect);
