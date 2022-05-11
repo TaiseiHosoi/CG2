@@ -32,3 +32,4 @@
 *.app
 /.vs/CG2/v17
 /x64/Debug
+/x64/Release/CG2.tlog
