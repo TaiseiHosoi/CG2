@@ -17,6 +17,8 @@
 #include <string>
 #include<DirectXMath.h>
 #include<math.h>
+#include <DirectXTex.h>
+
 
 const float PI = 3.14f;
 
@@ -268,11 +270,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	assert(SUCCEEDED(result));
 
 
-	//DirectX12初期化処理　ここまで///////////////////////////////////////////
+	//DirectX12初期化処理ここまで
 
 
 
-	//////描画初期化処理 ここから/////////////////////////////////////////////////////////////////
+	//描画初期化処理ここから
 
 	//横方向ピクセル数
 	const size_t textureWidth = 256;
@@ -286,7 +288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//全ピクセルの色を初期化
 	for (size_t i = 0; i < imageDataCount; i++) {
 		imageData[i].x = 0.0f;    //R
-		imageData[i].y = 1.0f;    //G
+		imageData[i].y = 0.5f;    //G
 		imageData[i].z = 0.0f;    //B
 		imageData[i].w = 1.0f;    //A
 	}
@@ -296,12 +298,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	textureHeapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
 	textureHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 	textureHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	
+
+	//データ転送
+	TexMetadata metadata{};
+	ScratchImage scratchImg{};
+	//WICテクスチャのロード
+	result = LoadFromWICFile(
+		L"Resource/texture.png",
+		WIC_FLAGS_NONE,
+		&metadata, scratchImg);//下の差し替え
+	ScratchImage mipChain{};
+	//ミニマップ生成
+	result = GenerateMipMaps(
+	scratchImg.GetImages(),scratchImg.GetImageCount(),scratchImg.GetMetadata(),
+		TEX_FILTER_DEFAULT, 0, mipChain);
+	if (SUCCEEDED(result)) {
+		scratchImg = std::move(mipChain);
+		metadata = scratchImg.GetMetadata();
+	}
+	//読み込んだディフューズテクスチャをSRGBとして扱う
+	metadata.format = MakeSRGB(metadata.format);
+
 	//リソース設定
+	//D3D12_RESOURCE_DESC textureResourceDesc{};
+	//textureResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; textureResourceDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; textureResourceDesc.Width = textureWidth;  //幅
+	//textureResourceDesc.Height = textureWidth; //高さ
+	//textureResourceDesc.DepthOrArraySize = 1;
+	//textureResourceDesc.MipLevels = 1;
+	//textureResourceDesc.SampleDesc.Count = 1;
+
 	D3D12_RESOURCE_DESC textureResourceDesc{};
-	textureResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; textureResourceDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; textureResourceDesc.Width = textureWidth;  //幅
-	textureResourceDesc.Height = textureWidth; //高さ
-	textureResourceDesc.DepthOrArraySize = 1;
-	textureResourceDesc.MipLevels = 1;
+	textureResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureResourceDesc.Format = metadata.format;
+	textureResourceDesc.Width = metadata.width;
+	textureResourceDesc.Height = (UINT)metadata.height;
+	textureResourceDesc.DepthOrArraySize = (UINT16)metadata.arraySize;
+	textureResourceDesc.MipLevels = (UINT16)metadata.mipLevels;
 	textureResourceDesc.SampleDesc.Count = 1;
 
 	//テクスチャバッファの生成
@@ -315,13 +348,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		IID_PPV_ARGS(&texBuff));
 
 	//テクスチャバッファにデータ転送
-	result = texBuff->WriteToSubresource(
-		0,
-		nullptr, //全領域へコピー
-		imageData,    //元データアドレス
-		sizeof(XMFLOAT4) * textureWidth, //1ラインサイズ
-		sizeof(XMFLOAT4) * imageDataCount //全サイズ
-	);
+	//result = texBuff->WriteToSubresource(
+	//	0,
+	//	nullptr, //全領域へコピー
+	//	imageData,    //元データアドレス
+	//	sizeof(XMFLOAT4) * textureWidth, //1ラインサイズ
+	//	sizeof(XMFLOAT4) * imageDataCount //全サイズ
+	//);
 
 	//SRVの最大個数
 	const size_t kMaxSRVCount = 2056;
@@ -341,15 +374,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = srvHeap->GetCPUDescriptorHandleForHeapStart();
 
 
-	//シェーダリソースビュー設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{}; //設定構造体
-	srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;//RGBA float
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;//2Dテクスチャ
-	srvDesc.Texture2D.MipLevels = 1;
-
-	//ハンドルの指す位置にシェーダーリソースビュー作成
-	device->CreateShaderResourceView(texBuff, &srvDesc, srvHandle);
+	
 
 	//CBV,SRV,UAVの1個分のサイズを取得
 	UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -508,6 +533,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	resDesc.MipLevels = 1;
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	//シェーダリソースビュー設定
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{}; //設定構造体
+	srvDesc.Format = resDesc.Format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = resDesc.MipLevels;
+
+	//ハンドルの指す位置にシェーダーリソースビュー作成
+	device->CreateShaderResourceView(texBuff, &srvDesc, srvHandle);
 
 	//インデックスバッファの生成
 	ID3D12Resource* indexBuff = nullptr;
