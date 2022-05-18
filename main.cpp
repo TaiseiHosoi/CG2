@@ -15,6 +15,9 @@
 #include <vector>
 #include <string>
 #include<DirectXMath.h>
+#include<math.h>
+
+const float PI = 3.14f;
 
 
 using namespace DirectX;
@@ -44,6 +47,19 @@ uint16_t indices[] =
 	0,1,2,	//左下三角形
 	1,2,3,	//右上三角形
 };
+
+
+float affinMove[3][3] = {
+  {1.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f},
+  {0.0f, 0.0f, 1.0f  }
+};
+
+float transformX = 0.0f;
+float transformY = 0.0f;
+float scale = 0.0f;
+float rotation = 0.0f;
+
 
 
 //ウィンドウプロシージャ
@@ -326,21 +342,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	//頂点データ
 	XMFLOAT3 vertices[] = {
-	{ -0.5f, -0.5f, 0.0f }, // 左下
-	{ -0.5f, +0.5f, 0.0f }, // 左上
-	{ +0.5f, -0.5f, 0.0f }, // 右下
+	{ -0.5f, -0.5f, 0.0f }, //左下
+	{ -0.5f, +0.5f, 0.0f }, //左上
+	{ +0.5f, -0.5f, 0.0f }, //右下
 	{ +0.5f, +0.5f, 0.0f }	//右上
 	};
 	//頂点データ全体のサイズ = 頂点データ一つ分のサイズ * 頂点データの要素数
 	UINT sizeVB = static_cast<UINT>(sizeof(XMFLOAT3) * _countof(vertices));
 
 	//頂点バッファの設定
-	D3D12_HEAP_PROPERTIES heapProp{}; // ヒープ設定
-	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD; // GPUへの転送用
+	D3D12_HEAP_PROPERTIES heapProp{}; //ヒープ設定
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD; //GPUへの転送用
 	//リソース設定
 	D3D12_RESOURCE_DESC resDesc{};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = sizeVB; // 頂点データ全体のサイズ
+	resDesc.Width = sizeVB; //頂点データ全体のサイズ
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -590,12 +606,78 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		BYTE key[256] = {};
 		keyboard->GetDeviceState(sizeof(key), key);
 
-		//キー入力プログラム
-		if (key[DIK_0]) {
-			OutputDebugStringA("Hit 0\n"); //出力ウィンドウに[Hit 0]と出力
+		transformX = 0.0f;
+		transformY = 0.0f;
+		rotation = 0.0f;
+		scale = 1.0f;
 
+		// キー入力
 
+		//平行移動
+		if (key[DIK_W]) {
+			transformY += 0.05f;
 		}
+
+		if (key[DIK_S]) {
+			transformY -= 0.05f;
+		}
+
+		if (key[DIK_A]) {
+			transformX -= 0.05f;
+		}
+
+		if (key[DIK_D]) {
+			transformX += 0.05f;
+		}
+
+		// 拡大縮小
+		if (key[DIK_Z]) {
+			scale -= 0.1f;
+		}
+
+		if (key[DIK_C]) {
+			scale += 0.1f;
+		}
+
+
+		// 回転
+		if (key[DIK_Q]) {
+			rotation -= PI / 32;
+		}
+
+		if (key[DIK_E]) {
+			rotation += PI / 32;
+		}
+
+
+		// アフィン行列の生成
+		affinMove[0][0] = scale * cos(rotation);
+		affinMove[0][1] = scale * (-sin(rotation));
+		affinMove[0][2] = transformX;
+
+		affinMove[1][0] = scale * sin(rotation);
+		affinMove[1][1] = scale * cos(rotation);
+		affinMove[1][2] = transformY;
+
+		affinMove[2][0] = 0.0f;
+		affinMove[2][1] = 0.0f;
+		affinMove[2][2] = 1.0f;
+
+		// アフィン変換
+		for (int i = 0; i < _countof(vertices); i++) {
+			vertices[i].x = vertices[i].x * affinMove[0][0] +
+				vertices[i].y * affinMove[0][1] + 1.0f * affinMove[0][2];
+			vertices[i].y = vertices[i].x * affinMove[1][0] +
+				vertices[i].y * affinMove[1][1] + 1.0f * affinMove[1][2];
+			vertices[i].z = vertices[i].x * affinMove[2][0] +
+				vertices[i].y * affinMove[2][1] + 1.0f * affinMove[2][2];
+		}
+
+		// 全頂点に対して
+		for (int i = 0; i < _countof(vertices); i++) {
+			vertMap[i] = vertices[i]; // 座標をコピー
+		}
+
 
 
 		//バックバッファの番号を取得（2つなので0番か1番）
