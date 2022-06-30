@@ -447,9 +447,41 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			0.1f, 1000.0f
 		);
 
-	//定数バッファに転送
-	constMapTransform->mat = matProjection;
+	//ビュー変換行列
+	XMMATRIX matView;
+	XMFLOAT3 eye(30, 0, -100);
+	XMFLOAT3 target(0, 0, 0);
+	XMFLOAT3 up(0, 1, 0);
+	matView = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
 
+	float angle = 0.0f; //カメラの回転角
+
+	//ワールド変換行列
+	XMMATRIX matWorld;
+	matWorld = XMMatrixIdentity();
+
+	XMMATRIX matScale;//スケーリング行列
+	matScale = XMMatrixScaling(1.0f, 0.5f, 1.0f);
+	matWorld *= matScale;//ワールド行列にスケーリングを反映
+
+	XMMATRIX matRot;//回転行列
+	matRot = XMMatrixIdentity();
+	matRot *= XMMatrixRotationZ(XMConvertToRadians(0.0f));//Z軸周りに0度回転
+	matRot *= XMMatrixRotationX(XMConvertToRadians(15.0f));//X軸周りに15度回転
+	matRot *= XMMatrixRotationY(XMConvertToRadians(30.0f));//X軸周りに30度回転
+	matWorld *= matRot;//ワールド行列に回転を反映
+
+	XMMATRIX matTrans;//平行移動行列
+	matTrans = XMMatrixTranslation(-50.0f, 0, 0);//(-50,0,0)平行移動
+	matWorld *= matTrans;//ワールド行列に平行移動を反映
+
+	//座標
+	XMFLOAT3 position = { 0.0f,0.0f,0.0f };
+
+	//定数バッファに転送
+	constMapTransform->mat = matWorld * matView * matProjection;
+
+	
 	//ヒープ設定
 	D3D12_HEAP_PROPERTIES cbHeapProp{};
 	cbHeapProp.Type = D3D12_HEAP_TYPE_UPLOAD;                   //GPUへの転送用
@@ -523,10 +555,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//頂点データ
 	Vertex vertices[] = {
 		//x      y     z       u     v
-		{{-50.0f, -50.0f, 50.0f}, {0.0f, 1.0f}}, //左下
-		{{-50.0f, 50.0f, 50.0f}, {0.0f, 0.0f}}, //左上
-		{{50.0f, -50.0f, 50.0f}, {1.0f, 1.0f}}, //右下
-		{{50.0f, 50.0f, 50.0f}, {1.0f, 0.0f}}, //右上
+		{{-50.0f, -50.0f, 0.0f}, {0.0f, 1.0f}}, //左下
+		{{-50.0f, 50.0f, 0.0f}, {0.0f, 0.0f}}, //左上
+		{{50.0f, -50.0f, 0.0f}, {1.0f, 1.0f}}, //右下
+		{{50.0f, 50.0f, 0.0f}, {1.0f, 0.0f}}, //右上
 	};
 
 
@@ -843,6 +875,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		if (keys[DIK_0]) {
 			OutputDebugStringA("Hit 0\n");  //出力ウィンドウに「Hit 0」と表示
 		}
+
+		//カメラ移動
+		if (keys[DIK_D] || keys[DIK_A]) {
+			if (keys[DIK_D]) {
+				angle += XMConvertToRadians(1.0f);
+			}
+			else if (keys[DIK_A]) {
+				angle -= XMConvertToRadians(1.0f);
+			}
+
+			//angleラジアンだけY軸周りに回転。半径は-100
+			eye.x = -100 * sinf(angle);
+			eye.z = -100 * cosf(angle);
+			matView = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
+
+		}
+
+		if (keys[DIK_UP] || keys[DIK_DOWN] || keys[DIK_RIGHT] || keys[DIK_LEFT]) {
+			//座標を移動する装備
+			if (keys[DIK_UP]) {
+				position.z += 1.0f;
+			}
+			else if(keys[DIK_DOWN]) {
+				position.z -= 1.0f;
+			}if (keys[DIK_RIGHT]) {
+				position.x += 1.0f;
+			}
+			else if (keys[DIK_LEFT]) {
+				position.x -= 1.0f;
+			}
+		}
+		matWorld = XMMatrixIdentity();
+		matWorld *= matScale;//ワールド行列にスケーリングを反映
+		matWorld *= matRot;//ワールド行列にスケーリングを反映
+
+		matTrans = XMMatrixTranslation(position.x, position.y, position.z);
+		matWorld *= matTrans;//ワールド行列に平行移動を反映
+
+		//定数バッファに転送
+		constMapTransform->mat = matWorld * matView * matProjection;
+
 
 		//バックバッファの番号を取得(2つなので0番か1番)
 		UINT bbIndex = swapChain->GetCurrentBackBufferIndex();
