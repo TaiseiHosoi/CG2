@@ -439,7 +439,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		XMFLOAT4 Move; //移動
 	};
 
-	ID3D12Resource* constBuffTransform = nullptr;
+	ID3D12Resource* constBuffTransform= nullptr;
 	ConstBufferDataTransform* constMapTransform = nullptr;
 
 	//スコープをずらす
