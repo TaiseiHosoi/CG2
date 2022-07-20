@@ -437,7 +437,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ScratchImage scratchImg{};
 	//WICテクスチャのロード
 	result = LoadFromWICFile(
-		L"Resource/texture.png",
+		L"Resource/white.png",
 		WIC_FLAGS_NONE,
 		&metadata, scratchImg);//下の差し替え
 	ScratchImage mipChain{};
@@ -447,10 +447,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ScratchImage scratchImg2{};
 	//WICテクスチャのロード
 	result = LoadFromWICFile(
-		L"Resources/reimu.png",
+		L"Resource/reimu.png",
 		WIC_FLAGS_NONE,
-		&metadata2, scratchImg2
-	);
+		&metadata2, scratchImg2);
+	ScratchImage mipChain2{};
 
 	//ミニマップ生成
 	result = GenerateMipMaps(
@@ -462,6 +462,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 	//読み込んだディフューズテクスチャをSRGBとして扱う
 	metadata.format = MakeSRGB(metadata.format);
+
+	//2
+	//ミニマップ生成
+	result = GenerateMipMaps(
+		scratchImg2.GetImages(), scratchImg2.GetImageCount(), scratchImg2.GetMetadata(),
+		TEX_FILTER_DEFAULT, 0, mipChain2);
+	if (SUCCEEDED(result)) {
+		scratchImg2 = std::move(mipChain2);
+		metadata2 = scratchImg2.GetMetadata();
+	}
+	//読み込んだディフューズテクスチャをSRGBとして扱う
+	metadata2.format = MakeSRGB(metadata2.format);
 
 	
 
@@ -485,13 +497,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		//2
 
 	D3D12_RESOURCE_DESC textureResourceDesc2{};
-	textureResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	textureResourceDesc.Format = metadata.format;
-	textureResourceDesc.Width = metadata.width;
-	textureResourceDesc.Height = (UINT)metadata.height;
-	textureResourceDesc.DepthOrArraySize = (UINT16)metadata.arraySize;
-	textureResourceDesc.MipLevels = (UINT16)metadata.mipLevels;
-	textureResourceDesc.SampleDesc.Count = 1;
+	textureResourceDesc2.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureResourceDesc2.Format = metadata2.format;
+	textureResourceDesc2.Width = metadata2.width;
+	textureResourceDesc2.Height = (UINT)metadata2.height;
+	textureResourceDesc2.DepthOrArraySize = (UINT16)metadata2.arraySize;
+	textureResourceDesc2.MipLevels = (UINT16)metadata2.mipLevels;
+	textureResourceDesc2.SampleDesc.Count = 1;
 
 	//テクスチャバッファの生成
 	ID3D12Resource* texBuff = nullptr;
@@ -529,6 +541,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		assert(SUCCEEDED(result));
 	}
 
+	//2
+	for (size_t i = 0; i < metadata2.mipLevels; i++) {
+		// ミップマップレベルを指定してイメージを取得
+		const Image* img2 = scratchImg2.GetImage(i, 0, 0);
+		// テクスチャバッファにデータ転送
+		result = texBuff2->WriteToSubresource(
+			(UINT)i,
+			nullptr,              // 全領域へコピー
+			img2->pixels,          // 元データアドレス
+			(UINT)img2->rowPitch,  // 1ラインサイズ
+			(UINT)img2->slicePitch // 1枚サイズ
+		);
+		assert(SUCCEEDED(result));
+	}
+
 
 	//SRVの最大個数
 	const size_t kMaxSRVCount = 2056;
@@ -539,14 +566,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;//シェーダから見えるように
 	srvHeapDesc.NumDescriptors = kMaxSRVCount;
 
-
-
-
-
 	//CBV,SRV,UAVの1個分のサイズを取得
 	UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
 
 	//デスクリプタレンジの設定
 	D3D12_DESCRIPTOR_RANGE descriptorRange{};
@@ -939,8 +960,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	UINT incrementSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	//ハンドルを1つ進める（SRVの位置）
-	//srvHandle.ptr += descriptorSize * 1;
+	
 	srvHandle.ptr += incrementSize;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
@@ -952,7 +972,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//ハンドルの指す位置にシェーダーリソースビュー作成
 	device->CreateShaderResourceView(texBuff2, &srvDesc2, srvHandle);
 
-
+	//ハンドルを1つ進める（SRVの位置）
+	srvHandle.ptr += descriptorSize * 1;
 
 
 	//CBV(コンスタントバッファビュー)の設定
@@ -976,6 +997,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//インデックスバッファをマッピング
 	uint16_t* indexMap = nullptr;
 	result = indexBuff->Map(0, nullptr, (void**)&indexMap);
+
 	//全インデックスに対して
 	for (int i = 0; i < _countof(indices); i++)
 	{
@@ -995,6 +1017,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	Vertex* vertMap = nullptr;
 	result = vertBuff->Map(0, nullptr, (void**)&vertMap);
 	assert(SUCCEEDED(result));
+
 	//全頂点に対して
 	for (int i = 0; i < _countof(vertices); i++) {
 		vertMap[i] = vertices[i]; //座標をコピー
@@ -1013,6 +1036,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ID3DBlob* vsBlob = nullptr; //頂点シェーダオブジェクト
 	ID3DBlob* psBlob = nullptr; //ピクセルシェーダオブジェクト
 	ID3DBlob* errorBlob = nullptr; //エラーオブジェクト
+
 	//頂点シェーダの読み込みとコンパイル
 	result = D3DCompileFromFile(
 		L"BasicVS.hlsl", //シェーダファイル名
@@ -1022,6 +1046,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, //デバッグ用設定
 		0,
 		&vsBlob, &errorBlob);
+
 	//エラーなら
 	if (FAILED(result)) {
 		//errorBlobからエラー内容をstring型にコピー
