@@ -142,6 +142,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Object3D.cpp" />
     <ClCompile Include="Transration.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -159,6 +160,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Object3D.h" />
     <ClInclude Include="Transration.h" />
   </ItemGroup>
   <ItemGroup>

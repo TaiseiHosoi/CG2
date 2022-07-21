@@ -90,20 +90,22 @@ LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 }
 
+
 struct Object3d {
 	ComPtr<ID3D12Resource> constBuffTransform;
 	ConstBufferDataTransform* constMapTransform = nullptr;
 
 	XMFLOAT3 scale = { 1,1,1 };
-	XMFLOAT3 rotation = { 0,0,0 };
+	XMFLOAT3 rotation = { 3.0f,0,0 };
 	XMFLOAT3 position = { 0,0,0 };
 
 	XMMATRIX matWorld{};
 
 	Object3d* parent = nullptr;
 
-
 };
+
+XMFLOAT4 plugInColor = { 0.0f,0.0f,0.0f,1.0f };//RGBA
 
 
 void InitializeObject3d(Object3d* object, ID3D12Device* device) {
@@ -239,7 +241,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ComPtr < ID3D12CommandAllocator>commandAllocator;
 	ComPtr<ID3D12GraphicsCommandList>commandList;
 	ComPtr<ID3D12CommandQueue>commandQueue;
-	ID3D12DescriptorHeap*rtvHeap;
+	ID3D12DescriptorHeap* rtvHeap = nullptr;
 
 	//DXGIファクトリーの生成
 	result = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
@@ -313,7 +315,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;	//フリップ後は破壊
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-	
+
 	//スワップチェーンの生成
 	result = dxgiFactory->CreateSwapChainForHwnd(
 		commandQueue.Get(),
@@ -424,22 +426,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		&dsvDesc,
 		dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-	//横方向ピクセル数
-	const size_t textureWidth = 256;
-	//縦方向ピクセル数
-	const size_t textureHeight = 256;
-	//配列の要素数
-	const size_t imageDataCount = textureWidth * textureHeight;
-	//画像イメージデータ配列
-	XMFLOAT4* imageData = new XMFLOAT4[imageDataCount]; //※必ず後で解放する
 
-	//全ピクセルの色を初期化
-	for (size_t i = 0; i < imageDataCount; i++) {
-		imageData[i].x = 0.0f;    //R
-		imageData[i].y = 0.5f;    //G
-		imageData[i].z = 0.0f;    //B
-		imageData[i].w = 1.0f;    //A
-	}
 
 
 
@@ -486,7 +473,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//読み込んだディフューズテクスチャをSRGBとして扱う
 	metadata2.format = MakeSRGB(metadata2.format);
 
-	
+
 
 
 
@@ -505,7 +492,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	textureResourceDesc.DepthOrArraySize = (UINT16)metadata.arraySize;
 	textureResourceDesc.MipLevels = (UINT16)metadata.mipLevels;
 	textureResourceDesc.SampleDesc.Count = 1;
-		//2
+	//2
 
 	D3D12_RESOURCE_DESC textureResourceDesc2{};
 	textureResourceDesc2.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -602,7 +589,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		XMFLOAT4 Move; //移動
 	};
 
-	ComPtr<ID3D12Resource> constBuffTransform0= nullptr;
+	ComPtr<ID3D12Resource> constBuffTransform0 = nullptr;
 	ConstBufferDataTransform* constMapTransform0 = nullptr;
 
 	ComPtr<ID3D12Resource> constBuffTransform1 = nullptr;
@@ -657,7 +644,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 
 
-	const size_t kObjectCount = 50;
+	const size_t kObjectCount = 1;
 	Object3d object3ds[kObjectCount];
 
 	for (int i = 0; i < _countof(object3ds); i++) {
@@ -810,70 +797,49 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	};
 	//頂点データ
 	Vertex vertices[] = {
-		//前
+		//1
 		//x      y     z       u     v
-		{{-5.0f, -5.0f, -5.0f}, {}, {0.0f, 1.0f}}, //左下
-		{{-5.0f, 5.0f, -5.0f}, {}, {0.0f, 0.0f}}, //左上
-		{{5.0f, -5.0f, -5.0f}, {}, {1.0f, 1.0f}}, //右下
-		{{5.0f, 5.0f, -5.0f}, {}, {1.0f, 0.0f}}, //右上
+		{{0.0f, 4.34f, 0.0f}, {},	  {0.5f, 0.0f}}, //頂点
+		{{-5.0f, -4.34f, -4.34f}, {}, {0.0f, 1.0f}}, //左下
+		{{5.0f, -4.34f, -4.34f}, {},  {1.0f, 1.0f}}, //右下
 
-		//後ろ
+		//2
 		//x      y     z       u     v
-		{{-5.0f, -5.0f, 5.0f},{}, {0.0f, 1.0f}}, //左下
-		{{-5.0f, 5.0f, 5.0f},{}, {0.0f, 0.0f}}, //左上
-		{{5.0f, -5.0f, 5.0f},{}, {1.0f, 1.0f}}, //右下
-		{{5.0f, 5.0f, 5.0f}, {}, {1.0f, 0.0f}}, //右上
+		{{0.0f, 4.34f, 0.0f}, {},   {0.5f, 0.0f}}, //頂点
+		{{5.0f, -4.34f, -5.0f}, {}, {0.0f, 1.0f}}, //左下
+		{{5.0f, -4.34f, 5.0f}, {},  {1.0f, 1.0f}}, //右下
 
-		//左
+		//3
 		//x      y     z       u     v
-		{{-5.0f, -5.0f, -5.0f}, {}, {0.0f, 1.0f}}, //左下
-		{{-5.0f, -5.0f, 5.0f},{}, {0.0f, 0.0f}}, //左上
-		{{-5.0f, 5.0f, -5.0f},{}, {1.0f, 1.0f}}, //右下
-		{{-5.0f, 5.0f, 5.0f}, {}, {1.0f, 0.0f}}, //右上
+		{{0.0f, 4.34f, 0.0f}, {},   {0.5f, 0.0f}}, //頂点
+		{{5.0f, -4.34f, 5.0f}, {},  {1.0f, 1.0f}}, //左下
+		{{-5.0f, -4.34f, 5.0f}, {}, {0.0f, 1.0f}}, //右下
 
-		//右
-		{{5.0f, -5.0f, -5.0f},{}, {0.0f, 1.0f}}, //左下
-		{{5.0f, -5.0f, 5.0f}, {}, {0.0f, 0.0f}}, //左上
-		{{5.0f, 5.0f, -5.0f}, {}, {1.0f, 1.0f}}, //右下
-		{{5.0f, 5.0f, 5.0f}, {}, {1.0f, 0.0f}}, //右上
+		//4
+		//x      y     z       u     v
+		{{0.0f, 4.34f, 0.0f}, {},   {0.5f, 0.0f}}, //頂点
+		{{-5.0f, -4.34f, 5.0f}, {},  {1.0f, 1.0f}}, //右下
+		{{-5.0f, -4.34f, -5.0f}, {}, {0.0f, 1.0f}}, //左下
 
-		//下
-		{{-5.0f, -5.0f, -5.0f},{}, {0.0f, 1.0f}}, //左下
-		{{5.0f, -5.0f, -5.0f},{}, {0.0f, 0.0f}}, //左上
-		{{-5.0f, -5.0f, 5.0f},{}, {1.0f, 1.0f}}, //右下
-		{{5.0f, -5.0f, 5.0f},{}, {1.0f, 0.0f}}, //右上
-
-		//上
-		//下
-		{{-5.0f, 5.0f, -5.0f},{}, {0.0f, 1.0f}}, //左下
-		{{5.0f, 5.0f, -5.0f},{}, {0.0f, 0.0f}}, //左上
-		{{-5.0f, 5.0f, 5.0f},{}, {1.0f, 1.0f}}, //右下
-		{{5.0f, 5.0f, 5.0f},{}, {1.0f, 0.0f}}, //右上
-
+		//5
+		{{-5.0f, -4.34, -5.0f}, {},   {0.0f, 0.0f}}, 
+		{{-5.0f, -4.34, 5.0f}, {}, {1.0f, 0.0f}}, 
+		{{5.0f, -4.34, -5.0f}, {}, {0.0f, 1.0f}},
+		{{5.0f, -4.34, 5.0f}, {}, {1.0f, 1.0f}},
 
 	};
 
 
 	//インデックスデータ
 	unsigned short indices[] = {
-		////前
-		0, 1, 2, //三角形1つ目
-		2, 1, 3, //三角形2つ目
-		//後
-		5,4,6,
-		5,6,7,
-		//左
-		8,9,10,
-		10,9,11,
-		//右
-		13,12,14,
-		13,14,15,
-		//下
-		16,17,18,
-		18,17,19,
-		//上
-		21,20,22,
-		21,22,23,
+		0, 2, 1, //三角形1つ目
+		3,5,4, //三角形2つ目
+		6,8,7,
+		9,11,10,
+		12,14,13,
+		15,13,14
+
+
 
 	};
 
@@ -901,7 +867,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		XMStoreFloat3(&vertices[Index0].normal, normal);
 		XMStoreFloat3(&vertices[Index1].normal, normal);
 		XMStoreFloat3(&vertices[Index2].normal, normal);
-		
+
 	}
 #pragma endregion
 
@@ -952,7 +918,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	
+
 
 
 
@@ -973,7 +939,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	UINT incrementSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	
+
 	srvHandle.ptr += incrementSize;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
@@ -1004,7 +970,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&indexBuff));
-	
+
 
 
 	//インデックスバッファをマッピング
@@ -1255,13 +1221,21 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				angle -= XMConvertToRadians(1.0f);
 			}
 
-
-			//angleラジアンだけY軸周りに回転。半径は-100
-			eye.x = -100 * sinf(angle);
-			eye.z = -100 * cosf(angle);
-			matView = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
-
 		}
+
+
+		angle += XMConvertToRadians(3.0f);
+		if (angle <= -PI*2 || angle >= PI * 2) {
+			angle = 0.0f;
+		}
+
+		//angleラジアンだけY軸周りに回転。半径は-100
+		eye.x = -100 * sinf(angle);
+		eye.z = -100 * cosf(angle);
+		matView = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
+
+
+
 
 		if (keys[DIK_UP] || keys[DIK_DOWN] || keys[DIK_RIGHT] || keys[DIK_LEFT]) {
 			//座標を移動する装備
@@ -1277,6 +1251,25 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				position.x -= 1.0f;
 			}
 		}
+
+
+		plugInColor.x += 0.005f;
+		plugInColor.y += 0.01f;
+		plugInColor.z += 0.005f;
+
+		if (plugInColor.x > 1.0f) {
+			plugInColor.x = 0.0f;
+		}
+		if (plugInColor.y > 1.0f) {
+			plugInColor.y = 0.0f;
+		}
+		if (plugInColor.z > 1.0f) {
+			plugInColor.z = 0.0f;
+		}
+	
+
+		constMapMaterial->color = XMFLOAT4(plugInColor.x, plugInColor.y, plugInColor.z, 1.0f);
+
 		//matWorld = XMMatrixIdentity();
 		//matWorld *= matScale;//ワールド行列にスケーリングを反映
 		//matWorld *= matRot;//ワールド行列にスケーリングを反映
@@ -1398,7 +1391,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		commandList->SetGraphicsRootDescriptorTable(1, srvGpuHandle);
 
 		//二枚目を指し示すようにしたSRVのハンドルをルートパラメータ1番に設定
-		srvGpuHandle.ptr += incrementSize;
+		//srvGpuHandle.ptr += incrementSize;
 		commandList->SetGraphicsRootDescriptorTable(1, srvGpuHandle);
 
 		//commandList->SetGraphicsRootConstantBufferView(2, constBuffTransform0->GetGPUVirtualAddress());
@@ -1428,7 +1421,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		result = commandList->Close();
 		assert(SUCCEEDED(result));
 		//コマンドリストの実行
-		ID3D12CommandList* commandLists[] = { commandList.Get()};
+		ID3D12CommandList* commandLists[] = { commandList.Get() };
 		commandQueue->ExecuteCommandLists(1, commandLists);
 
 		//画面に表示するバッファをフリップ(裏表の入れ替え)
@@ -1461,8 +1454,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	//もうクラスは使わないので登録を解除する
 	UnregisterClass(w.lpszClassName, w.hInstance);
-	//元データ解放
-	delete[] imageData;
 
 	return 0;
 }
