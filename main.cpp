@@ -73,6 +73,8 @@ float transformY = 0.0f;
 float scale = 0.0f;
 float rotation = 0.0f;
 
+
+
 //ウィンドウプロシージャ
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 //メッセージに応じてゲームの固有処理を行う
@@ -105,7 +107,8 @@ struct Object3d {
 
 };
 
-XMFLOAT4 plugInColor = { 0.0f,0.0f,0.0f,1.0f };//RGBA
+XMFLOAT4 plugInColor = { 0.0f,0.8f,0.3f,0.2f };//RGBA
+float sinAngle = 0.0f;
 
 
 void InitializeObject3d(Object3d* object, ID3D12Device* device) {
@@ -871,10 +874,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 #pragma endregion
 
-	float transformX = 0.0f;
-	float transformY = 0.0f;
-	float rotation = 0.0f;
-	float scale = 1.0f;
 
 	float affin[3][3] = {
 		{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
@@ -1223,8 +1222,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 		}
 
-
-		angle += XMConvertToRadians(3.0f);
 		if (angle <= -PI*2 || angle >= PI * 2) {
 			angle = 0.0f;
 		}
@@ -1240,65 +1237,44 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		if (keys[DIK_UP] || keys[DIK_DOWN] || keys[DIK_RIGHT] || keys[DIK_LEFT]) {
 			//座標を移動する装備
 			if (keys[DIK_UP]) {
-				position.y += 1.0f;
+				object3ds->position.y += 1.0f;
 			}
 			else if (keys[DIK_DOWN]) {
-				position.y -= 1.0f;
+				object3ds->position.y -= 1.0f;
 			}if (keys[DIK_RIGHT]) {
-				position.x += 1.0f;
+				object3ds->position.x += 1.0f;
 			}
 			else if (keys[DIK_LEFT]) {
-				position.x -= 1.0f;
+				object3ds->position.x -= 1.0f;
+			}
+		}
+
+		if (keys[DIK_Z] || keys[DIK_C]) {
+			//座標を移動する装備
+			if (keys[DIK_Z]) {
+				object3ds->rotation.y += XMConvertToRadians(4.0f);
+			}
+			else if (keys[DIK_C]) {
+				object3ds->rotation.y -= XMConvertToRadians(4.0f);
 			}
 		}
 
 
-		plugInColor.x += 0.005f;
-		plugInColor.y += 0.01f;
-		plugInColor.z += 0.005f;
 
-		if (plugInColor.x > 1.0f) {
-			plugInColor.x = 0.0f;
+
+		sinAngle += XMConvertToRadians(2.0f);
+		if (sinAngle > 2 * PI) {
+			sinAngle = 0;
 		}
-		if (plugInColor.y > 1.0f) {
-			plugInColor.y = 0.0f;
-		}
-		if (plugInColor.z > 1.0f) {
-			plugInColor.z = 0.0f;
-		}
+
+		plugInColor.x += sin(sinAngle) * 0.03f;
+		plugInColor.y += sin(sinAngle) * 0.03f;
+		plugInColor.z += sin(sinAngle) * 0.03f;
+		plugInColor.w += sin(sinAngle) * 0.01f;
+
 	
 
-		constMapMaterial->color = XMFLOAT4(plugInColor.x, plugInColor.y, plugInColor.z, 1.0f);
-
-		//matWorld = XMMatrixIdentity();
-		//matWorld *= matScale;//ワールド行列にスケーリングを反映
-		//matWorld *= matRot;//ワールド行列にスケーリングを反映
-
-		//matTrans = XMMatrixTranslation(position.x, position.y, position.z);
-		//matWorld *= matTrans;//ワールド行列に平行移動を反映
-
-		////定数バッファに転送
-		//constMapTransform0->mat = matWorld * matView * matProjection;
-		////2
-		////ワールド変換行列
-		//XMMATRIX matWorld1;
-		//matWorld1 = XMMatrixIdentity();
-
-		//XMMATRIX matScale1;//スケーリング行列
-		//matScale1 = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-		//XMMATRIX matRot1;//回転行列
-		//matRot1 = XMMatrixIdentity();
-		//matRot1 *= XMMatrixRotationZ(XMConvertToRadians(0.0f));//Z軸周りに0度回転
-		//matRot1 *= XMMatrixRotationX(XMConvertToRadians(0.0f));//X軸周りに0度回転
-		//matRot1 *= XMMatrixRotationY(XM_PI/4.0f);
-
-		//XMMATRIX matTrans1;//平行移動行列
-		//matTrans1 = XMMatrixTranslation(20.0f, 0, 0);//(-50,0,0)平行移動
-
-		//matWorld1 = matScale1 * matRot1 * matTrans1;
-		////ワールド、ビュー射影行列を合成
-		//constMapTransform1->mat = matWorld1 * matView * matProjection;
+		constMapMaterial->color = XMFLOAT4(plugInColor.x, plugInColor.y, plugInColor.z, plugInColor.w);
 
 		for (size_t i = 0; i < _countof(object3ds); i++) {
 			UpdateObject3d(&object3ds[i], matView, matProjection);
